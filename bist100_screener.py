@@ -1,58 +1,31 @@
-import requests
+import yfinance as yf
 import pandas as pd
-import numpy as np
 import smtplib
 import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime, timedelta
+from datetime import datetime
 import warnings
 warnings.filterwarnings("ignore")
 
 TOP_N = 10
 
 BIST100 = [
-    "AKBNK","AKSEN","ALARK","ARCLK","ASELS","BIMAS","EKGYO",
-    "ENKAI","EREGL","FROTO","GARAN","GUBRF","HALKB","ISCTR",
-    "KCHOL","KOZAA","KOZAL","KRDMD","MGROS","ODAS","OTKAR",
-    "OYAKC","PETKM","PGSUS","SAHOL","SASA","SISE","SOKM",
-    "TAVHL","TCELL","THYAO","TKFEN","TOASO","TTKOM","TTRAK",
-    "TUPRS","VAKBN","VESBE","YKBNK","ZOREN","AGHOL","AGESA",
-    "ALKIM","ANACM","ASUZU","AYGAZ","BIENY","BRSAN","CCOLA",
-    "CIMSA","CLEBI","DOAS","DYOBY","EGEEN","ENJSA","ESEN",
-    "EUPWR","FENER","GOLTS","GRSEL","GSDHO","HEKTS","IPEKE",
-    "ISGYO","ISKUR","KARTN","KARSN","KATMR","KLNMA","KONTR",
-    "KONYA","LOGO","MAVI","MPARK","NETAS","NUHCM","PARSN",
-    "PRKAB","PRKME","QUAGR","RTALB","RUBNS","SARKY","SKBNK",
-    "SMART","SMRTG","SNGYO","TSKB","ULKER","VESTL","YEOTK",
-    "YYLGD","ZRGYO"
+    "AKBNK.IS","AKSEN.IS","ALARK.IS","ARCLK.IS","ASELS.IS","BIMAS.IS","EKGYO.IS",
+    "ENKAI.IS","EREGL.IS","FROTO.IS","GARAN.IS","GUBRF.IS","HALKB.IS","ISCTR.IS",
+    "KCHOL.IS","KOZAA.IS","KOZAL.IS","KRDMD.IS","MGROS.IS","ODAS.IS","OTKAR.IS",
+    "OYAKC.IS","PETKM.IS","PGSUS.IS","SAHOL.IS","SASA.IS","SISE.IS","SOKM.IS",
+    "TAVHL.IS","TCELL.IS","THYAO.IS","TKFEN.IS","TOASO.IS","TTKOM.IS","TTRAK.IS",
+    "TUPRS.IS","VAKBN.IS","VESBE.IS","YKBNK.IS","ZOREN.IS","AGHOL.IS","AGESA.IS",
+    "ALKIM.IS","ANACM.IS","ASUZU.IS","AYGAZ.IS","BIENY.IS","BRSAN.IS","CCOLA.IS",
+    "CIMSA.IS","CLEBI.IS","DOAS.IS","DYOBY.IS","EGEEN.IS","ENJSA.IS","ESEN.IS",
+    "EUPWR.IS","FENER.IS","GOLTS.IS","GRSEL.IS","GSDHO.IS","HEKTS.IS","IPEKE.IS",
+    "ISGYO.IS","ISKUR.IS","KARTN.IS","KARSN.IS","KATMR.IS","KLNMA.IS","KONTR.IS",
+    "KONYA.IS","LOGO.IS","MAVI.IS","MPARK.IS","NETAS.IS","NUHCM.IS","PARSN.IS",
+    "PRKAB.IS","PRKME.IS","QUAGR.IS","RTALB.IS","RUBNS.IS","SARKY.IS","SKBNK.IS",
+    "SMART.IS","SMRTG.IS","SNGYO.IS","TSKB.IS","ULKER.IS","VESTL.IS","YEOTK.IS",
+    "YYLGD.IS","ZRGYO.IS"
 ]
-
-HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.isyatirim.com.tr"}
-
-
-def fiyat_gecmisi(sembol, gun=66):
-    bitis = datetime.today()
-    baslangic = bitis - timedelta(days=gun * 2)
-    url = (
-        "https://www.isyatirim.com.tr/_layouts/15/Isyatirim.Website/Common/Data.aspx/HisseTekil"
-        "?hisse=" + sembol +
-        "&startdate=" + baslangic.strftime('%d-%m-%Y') +
-        "&enddate=" + bitis.strftime('%d-%m-%Y') + ".json"
-    )
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=10)
-        df = pd.DataFrame(r.json()["value"])
-        if df.empty:
-            return None
-        df = df[["HGDG_TARIH", "HGDG_KAPANIS", "HGDG_HACIM"]].copy()
-        df.columns = ["Tarih", "Kapanis", "Hacim"]
-        df["Kapanis"] = pd.to_numeric(df["Kapanis"], errors="coerce")
-        df["Hacim"] = pd.to_numeric(df["Hacim"], errors="coerce")
-        return df.dropna().tail(gun)
-    except Exception as e:
-        return None
-
 
 def rsi_hesapla(seri, periyot=14):
     delta = seri.diff()
@@ -61,12 +34,11 @@ def rsi_hesapla(seri, periyot=14):
     rs = kazanc.rolling(periyot).mean() / (kayip.rolling(periyot).mean() + 1e-9)
     return 100 - (100 / (1 + rs))
 
-
 def analiz(df):
     if df is None or len(df) < 6:
         return 0, "N/A", "N/A", "N/A", "N/A", "N/A"
-    kapat = df["Kapanis"]
-    hacim = df["Hacim"]
+    kapat = df["Close"].squeeze()
+    hacim = df["Volume"].squeeze()
     r = rsi_hesapla(kapat).iloc[-1] if len(df) >= 14 else 50
     ema20 = kapat.ewm(span=20).mean().iloc[-1] if len(df) >= 20 else kapat.mean()
     ema50 = kapat.ewm(span=50).mean().iloc[-1] if len(df) >= 50 else kapat.mean()
@@ -92,19 +64,19 @@ def analiz(df):
     a1_str = "%" + str(round(aylik, 1))
     return puan, rsi_str, trend_str, hacim_str, h1_str, a1_str
 
-
 def tara():
     print("BIST100 taranıyor...")
     sonuclar = []
     for sembol in BIST100:
         try:
-            df = fiyat_gecmisi(sembol)
-            if df is None or df.empty:
+            t = yf.Ticker(sembol)
+            df = t.history(period="3mo")
+            if df.empty:
                 continue
             puan, rsi, trend, hacim, h1, a1 = analiz(df)
             sonuclar.append({
-                "Hisse": sembol,
-                "Fiyat": round(df["Kapanis"].iloc[-1], 2),
+                "Hisse": sembol.replace(".IS", ""),
+                "Fiyat": round(df["Close"].squeeze().iloc[-1], 2),
                 "Toplam": puan,
                 "RSI": rsi,
                 "Trend": trend,
@@ -112,7 +84,7 @@ def tara():
                 "1H": h1,
                 "1A": a1,
             })
-            print(sembol + ": " + str(puan) + "/5")
+            print(sembol.replace(".IS","") + ": " + str(puan) + "/5")
         except Exception as e:
             print(sembol + " hata: " + str(e))
 
@@ -125,14 +97,13 @@ def tara():
     df_sonuc.index += 1
     return df_sonuc
 
-
 def mail_gonder(df):
     EMAIL_GONDEREN = os.environ.get("EMAIL_GONDEREN", "")
     EMAIL_SIFRE = os.environ.get("EMAIL_SIFRE", "")
     EMAIL_ALICI = os.environ.get("EMAIL_ALICI", "")
 
     if not EMAIL_GONDEREN or not EMAIL_SIFRE or not EMAIL_ALICI:
-        print("Mail bilgileri eksik, mail gonderilmiyor.")
+        print("Mail bilgileri eksik.")
         return
 
     tarih = datetime.now().strftime("%d.%m.%Y")
@@ -152,16 +123,16 @@ def mail_gonder(df):
         )
 
     html = (
-        "<html><body style='font-family:Arial'>"
-        "<h2>BIST100 Gunluk Tarama - " + tarih + "</h2>"
-        "<table border='1' cellpadding='6' cellspacing='0'>"
-        "<tr style='background:#eee'>"
+        "<html><body style='font-family:Arial;padding:20px'>"
+        "<h2 style='color:#1a1a2e'>BIST100 Gunluk Tarama - " + tarih + "</h2>"
+        "<table border='1' cellpadding='8' cellspacing='0' style='border-collapse:collapse'>"
+        "<tr style='background:#1a1a2e;color:white'>"
         "<th>#</th><th>Hisse</th><th>Fiyat</th><th>Skor</th>"
         "<th>RSI</th><th>Trend</th><th>1 Hafta</th><th>1 Ay</th>"
         "</tr>"
         + satirlar +
         "</table>"
-        "<p style='color:gray;font-size:11px'>Bu liste yatirim tavsiyesi degildir.</p>"
+        "<p style='color:gray;font-size:11px;margin-top:20px'>Bu liste yatirim tavsiyesi degildir.</p>"
         "</body></html>"
     )
 
@@ -175,7 +146,6 @@ def mail_gonder(df):
         s.login(EMAIL_GONDEREN, EMAIL_SIFRE)
         s.sendmail(EMAIL_GONDEREN, EMAIL_ALICI, msg.as_string())
     print("Mail gonderildi: " + EMAIL_ALICI)
-
 
 if __name__ == "__main__":
     df = tara()
