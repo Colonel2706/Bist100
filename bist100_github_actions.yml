@@ -1,0 +1,44 @@
+# .github/workflows/bist100.yml
+# Bu dosyayı GitHub repo'nda .github/workflows/ klasörüne koy.
+# Script her hafta içi sabah 08:00 (Türkiye saati = UTC+3 → 05:00 UTC) çalışır.
+
+name: BIST100 Günlük Tarama
+
+on:
+  schedule:
+    - cron: "0 5 * * 1-5"   # UTC 05:00 = Türkiye 08:00, Pazartesi-Cuma
+  workflow_dispatch:          # Elle de çalıştırılabilir
+
+jobs:
+  tara-ve-gonder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v3
+
+      - name: Python kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Bağımlılıkları yükle
+        run: pip install yfinance pandas numpy
+
+      - name: Scripti çalıştır
+        env:
+          EMAIL_GONDEREN: ${{ secrets.EMAIL_GONDEREN }}
+          EMAIL_SIFRE:    ${{ secrets.EMAIL_SIFRE }}
+          EMAIL_ALICI:    ${{ secrets.EMAIL_ALICI }}
+        run: python bist100_screener.py
+
+# ─────────────────────────────────────────────
+# GITHUB SECRETS NASIL EKLENIR?
+# ─────────────────────────────────────────────
+# 1. GitHub repo → Settings → Secrets and variables → Actions
+# 2. "New repository secret" ile şu üç secret'ı ekle:
+#    EMAIL_GONDEREN  → gönderen gmail adresi
+#    EMAIL_SIFRE     → Gmail App Password (uygulama şifresi)
+#    EMAIL_ALICI     → arkasokaklar2727@gmail.com
+#
+# NOT: Scriptte EMAIL_GONDEREN/SIFRE/ALICI değerlerini
+# os.environ.get() ile okuyacak şekilde güncelle (aşağıya bakın).
