@@ -22,7 +22,7 @@ jobs:
           python-version: "3.11"
 
       - name: Bağımlılıkları yükle
-        run: pip install yfinance pandas numpy
+        run: run: pip install requests pandas numpy yfinance
 
       - name: Scripti çalıştır
         env:
