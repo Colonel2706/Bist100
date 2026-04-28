@@ -1,0 +1,28 @@
+name: BIST100 Günlük Tarama
+
+on:
+  schedule:
+    - cron: "0 5 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  tara-ve-gonder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v3
+
+      - name: Python kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Bağımlılıkları yükle
+        run: pip install yfinance pandas numpy
+
+      - name: Scripti çalıştır
+        env:
+          EMAIL_GONDEREN: ${{ secrets.EMAIL_GONDEREN }}
+          EMAIL_SIFRE:    ${{ secrets.EMAIL_SIFRE }}
+          EMAIL_ALICI:    ${{ secrets.EMAIL_ALICI }}
+        run: python bist100_screener.py
