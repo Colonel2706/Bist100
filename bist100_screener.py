@@ -218,7 +218,7 @@ def tara():
 # ÇALIŞTIR
 # ─────────────────────────────────────────────
 
-if __name__ == "__main__":
+if __name__ == "__main__": mail_gonder(df)
     df = tara()
     print("\n" + "="*72)
     print(f"  BIST100 GÜNLÜK TARAMA — {datetime.now().strftime('%d.%m.%Y')}")
@@ -230,3 +230,37 @@ if __name__ == "__main__":
         print(f"{i:<4} {r['Hisse']:<8} {r['Fiyat']:>8.2f} {r['Toplam']:>5} {r['RSI']:>7} {r['Trend']:<15} {r['1H']:>6} {r['1A']:>6} {r['F/K']:>6} {r['PD/DD']:>7}")
     print("="*72)
     print("⚠️  Bu liste yatırım tavsiyesi değildir.")
+    import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import os
+
+def mail_gonder(df):
+    EMAIL_GONDEREN = os.environ.get("EMAIL_GONDEREN")
+    EMAIL_SIFRE    = os.environ.get("EMAIL_SIFRE")
+    EMAIL_ALICI    = os.environ.get("EMAIL_ALICI")
+
+    tarih = datetime.now().strftime("%d.%m.%Y")
+    satirlar = ""
+    for i, r in df.iterrows():
+        satirlar += f"<tr><td>{i}</td><td><b>{r['Hisse']}</b></td><td>{r['Fiyat']:.2f} ₺</td><td>{r['Toplam']}/7</td><td>{r['RSI']}</td><td>{r['Trend']}</td><td>{r['1H']}</td><td>{r['1A']}</td><td>{r['F/K']}</td><td>{r['PD/DD']}</td></tr>"
+
+    html = f"""<html><body style="font-family:Arial">
+    <h2>📈 BIST100 Günlük Tarama — {tarih}</h2>
+    <table border="1" cellpadding="6" cellspacing="0">
+    <tr style="background:#eee"><th>#</th><th>Hisse</th><th>Fiyat</th><th>Skor</th><th>RSI</th><th>Trend</th><th>1H</th><th>1A</th><th>F/K</th><th>PD/DD</th></tr>
+    {satirlar}
+    </table>
+    <p style="color:gray;font-size:11px">⚠️ Bu liste yatırım tavsiyesi değildir.</p>
+    </body></html>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"📈 BIST100 Tarama — {tarih}"
+    msg["From"]    = EMAIL_GONDEREN
+    msg["To"]      = EMAIL_ALICI
+    msg.attach(MIMEText(html, "html"))
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+        s.login(EMAIL_GONDEREN, EMAIL_SIFRE)
+        s.sendmail(EMAIL_GONDEREN, EMAIL_ALICI, msg.as_string())
+    print(f"✅ Mail gönderildi → {EMAIL_ALICI}")
