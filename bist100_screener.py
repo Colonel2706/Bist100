@@ -184,6 +184,31 @@ def tara():
         except Exception as e:
             print(f"  ✗ {sembol}: {e}")
 
+    if not sonuclar:
+        print("⚠️ İş Yatırım API'sinden veri alınamadı, Yahoo Finance'e geçiliyor...")
+        import yfinance as yf
+        for sembol in BIST100:
+            try:
+                t  = yf.Ticker(sembol + ".IS")
+                df = t.history(period="3mo")
+                if df.empty:
+                    continue
+                df2 = pd.DataFrame({
+                    "Kapanis": df["Close"].squeeze(),
+                    "Hacim":   df["Volume"].squeeze()
+                })
+                t_puan, t_detay = teknik_skor(df2)
+                m_puan, m_detay = momentum_skor(df2)
+                sonuclar.append({
+                    "Hisse": sembol, "Fiyat": df2["Kapanis"].iloc[-1],
+                    "Toplam": t_puan + m_puan, "RSI": t_detay.get("RSI",""),
+                    "Trend": t_detay.get("Trend",""), "Hacim": t_detay.get("Hacim",""),
+                    "1H": m_detay.get("1H",""), "1A": m_detay.get("1A",""),
+                    "F/K": "N/A", "PD/DD": "N/A",
+                })
+            except:
+                continue
+
     df_sonuc = pd.DataFrame(sonuclar)
     df_sonuc = df_sonuc.sort_values("Toplam", ascending=False).head(TOP_N).reset_index(drop=True)
     df_sonuc.index += 1
