@@ -273,5 +273,3 @@ def mail_gonder(html_icerik):
 if __name__ == "__main__":
     df_sonuc = tara()
     print(df_sonuc[["Hisse","Fiyat","Toplam","RSI","Trend","1H","1A","F/K"]].to_string())
-    html = html_olustur(df_sonuc)
-    mail_gonder(html)
